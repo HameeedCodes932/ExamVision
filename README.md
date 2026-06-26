@@ -82,7 +82,7 @@ npm run dev
 | Database | PostgreSQL + Redis |
 | Dashboard | React 18, TypeScript, Tailwind, Vite |
 | Reports | ReportLab (PDF), CSV |
-| Infra | Docker Compose, NVIDIA GPU |
+| Infra | Docker Compose |
 
 ## Configuration
 
@@ -101,7 +101,7 @@ All settings via `PROCTOR_*` environment variables. Key ones:
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
-Requires NVIDIA GPU + Container Toolkit for ONNX/INT8 inference.
+The production profile uses ONNX + INT8 quantization by default. All inference runs on CPU — no GPU required. If you have an NVIDIA GPU, the compose file includes automatic GPU device reservation for faster inference.
 
 ## Tests
 
