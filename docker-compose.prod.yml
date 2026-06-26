@@ -1,0 +1,50 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      target: production
+    environment:
+      PROCTOR_DEBUG: "false"
+      PROCTOR_LOG_LEVEL: WARNING
+      PROCTOR_PROFILING_ENABLED: "false"
+      PROCTOR_DETECTION_INFERENCE_BACKEND: onnx
+      PROCTOR_DETECTION_QUANTIZATION: int8
+      PROCTOR_VIDEO_PROCESS_EVERY_N: 2
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/models:/app/models
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --limit-concurrency 64
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "4"
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    depends_on:
+      backend:
+        condition: service_healthy

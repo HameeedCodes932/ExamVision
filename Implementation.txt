@@ -1,0 +1,128 @@
+Read the entire Context.txt (565 lines). Full understanding achieved.
+This is a comprehensive AI-powered exam proctoring system — multi-camera video ingestion, real-time student/phone/pose/face/gaze detection, behavior analysis engine with suspicion scoring, FastAPI backend, PostgreSQL event store, React dashboard, and post-exam reporting.
+No hallucinations. No mistakes. Pure execution.
+Here is the detailed multi-phase plan:
+Phase 0 — Project Scaffold & Dev Environment
+- Initialize Python project structure with pyproject.toml, virtual env, dependency management (poetry or uv)
+- Set up FastAPI backend skeleton: app/main.py, app/api/, app/core/, app/models/, app/services/, app/schemas/
+- Set up React frontend with Vite + TypeScript + Tailwind: dashboard/
+- Set up PostgreSQL schema migrations (Alembic)
+- Docker Compose for local dev (PostgreSQL + Redis + app)
+- CI/lint/format config (ruff, mypy, pre-commit)
+- Establish logging & config pattern (pydantic-settings)
+Deliverable: Runnable skeleton with docker compose up
+Phase 1 — Video Ingestion Pipeline
+- Abstract camera interface: VideoSource base class with RTSP, USB, file subclasses
+- OpenCV-based frame capture with configurable FPS, resolution, buffering
+- Frame metadata dataclass: camera_id, timestamp, frame_index, raw_frame
+- Frame preprocessing: resize, normalize, color conversion
+- Async generator yielding frames to downstream consumers
+- Graceful reconnect on stream loss
+Deliverable: Module app/services/video/ — stream_manager.py, sources/, preprocessor.py
+Phase 2 — Student Detection (YOLOv8)
+- YOLOv8 model wrapper in app/services/detection/yolo_detector.py
+- Expose detect(frame) -> List[Detection] with bbox, confidence, class_id
+- Filter for person class only
+- NMS (Non-Maximum Suppression) post-processing
+- Configurable model size (nano vs small) and confidence threshold
+Deliverable: Working detection pipeline — frame in, [Detection(...)] out
+Phase 3 — Multi-Object Tracking (ByteTrack)
+- ByteTrack integration in app/services/tracking/bytetrack_tracker.py
+- Track state per student: track_id, bbox_history, velocity, active
+- Match new detections to existing tracks via IoU + motion prediction
+- Handle occlusions, re-entries, lost tracks
+- Output: List[TrackedStudent] with persistent student_id
+Deliverable: Consistent student IDs across frames
+Phase 4 — Pose Estimation (YOLOv8 Pose)
+- YOLOv8 Pose model wrapper
+- Output 17 COCO keypoints per detected person
+- Keypoint confidence filtering
+- Visual skeleton line definitions for drawing
+- Utility functions: get_joint_angle(), is_standing(), is_hand_raised()
+Deliverable: app/services/pose/pose_estimator.py — per-student 17-keypoint array
+Phase 5 — Face Detection & Head Pose
+- MediaPipe Face Detection (or RetinaFace) in app/services/face/face_detector.py
+- Crop face ROI from student bounding box
+- MediaPipe Face Mesh — 468 landmarks
+- SolvePnP with 6 key facial points → yaw, pitch, roll
+- Head direction classification: LEFT, RIGHT, UP, DOWN, FORWARD
+Deliverable: Per-student head orientation in degrees + discrete direction
+Phase 6 — Gaze Estimation
+- L2CS-Net (or Gaze360) ONNX model in app/services/gaze/gaze_estimator.py
+- Input: cropped eye region or full face + head angles
+- Output: (gaze_yaw, gaze_pitch) in degrees
+- Map to discrete targets: looking_at_paper, looking_left, looking_behind, looking_at_another_student, looking_forward
+- Requires calibration step or predefined classroom geometry
+Deliverable: Per-student gaze vector + target label
+Phase 7 — Phone Detection
+- YOLOv8 detection on full frame (class cell phone)
+- Output: PhoneDetection(bbox, confidence)
+- Association logic: compute IoU/distance between phone bbox and student hand keypoints → assign to nearest student
+- If phone bbox overlaps student bbox significantly → direct assignment
+Deliverable: PhoneDetected(student_id, confidence, bbox)
+Phase 8 — Behaviour Analysis Engine
+- Rule engine in app/services/behaviour/analyser.py
+- Sliding window of per-student states over configurable duration
+- Rules from Context.txt implemented:
+- looking_left > 5s → suspicious
+- phone_detected → high_alert
+- standing → medium_alert
+- head_down > 30s → possible_phone_usage
+- repeated_head_turns → talking/warning
+- student_left_seat → alert
+- frequent_body_twisting → possible_cheating
+- Each rule produces typed Event with severity
+Deliverable: Real-time List[Event] with per-student timeline
+Phase 9 — Suspicion Scoring
+- Weighted scoring formulas per event type
+- Running total per student over exam session
+- Threshold buckets: Normal (0-20), Observe (20-50), Warning (50-80), Critical (80+)
+- Score decay over time (old events weigh less)
+- SuspicionScore(student_id, total, breakdown, level)
+Deliverable: Real-time suspicion score per student
+Phase 10 — Event Logging & Database
+- PostgreSQL schema: students, events, alerts
+- Alembic migrations
+- Async SQLAlchemy repository pattern
+- EventLogger service — batch insert events every N frames
+- AlertManager — deduplicate, escalate, resolve alerts
+- Redis for real-time state cache (optional)
+Deliverable: Persistent event store + real-time state
+Phase 11 — Backend API & WebSocket
+- FastAPI routes:
+- GET /streams — list active camera streams
+- WS /ws/stream/{camera_id} — live frames + overlays as MJPEG or JSON
+- WS /ws/events — real-time event stream
+- GET /students/{id}/history — event timeline
+- GET /reports/{exam_id} — aggregated report
+- WebSocket manager for broadcasting to dashboard clients
+- Frame encoding (JPEG compression) and selective frame skipping for bandwidth
+Deliverable: Fully functional REST + WebSocket API
+Phase 12 — Dashboard (React)
+- Live video canvas with canvas-based overlays (bbox, ID, skeleton, phone indicator)
+- Real-time event feed sidebar with severity color coding
+- Student cards with live suspicion score and breakdown
+- Alert panel with acknowledge/resolve controls
+- Exam session selector + post-exam report view
+- Responsive layout (teacher's single-pane view)
+Deliverable: dashboard/ — production-ready React app
+Phase 13 — Report Generation
+- ReportGenerator service — aggregate events per student
+- Risk classification per student with evidence timeline
+- PDF/CSV export
+- API: GET /reports/{session_id}/pdf, GET /reports/{session_id}/csv
+Deliverable: Post-exam PDF/CSV reports
+Phase 14 — Performance Optimization
+- GPU inference (CUDA/ONNX runtime)
+- Frame skipping strategy (process every Nth frame for non-critical tasks)
+- Multi-threaded pipeline (capture → detect → track → analyze)
+- Model quantization (FP16/INT8)
+- Profiling and bottleneck elimination
+Deliverable: Benchmark report showing target 15-30 FPS on reference hardware
+Phase 15 — Integration Testing & Deployment
+- Full integration test with recorded classroom video
+- Docker Compose production profile
+- Environment config per deployment
+- Tuning thresholds for real-world conditions
+- Documentation (architecture diagram, setup guide, API reference)
+Deliverable: Deployable system with test evidence

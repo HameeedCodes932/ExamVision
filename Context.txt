@@ -1,0 +1,771 @@
+High-Level Architecture
+                 CCTV / IP Camera
+                        │
+                        ▼
+              Video Stream Manager
+                        │
+        ┌───────────────┼────────────────┐
+        ▼               ▼                ▼
+ Student Detection   Phone Detection   Person Tracking
+    (YOLOv8)            (YOLOv8)        (ByteTrack/DeepSORT)
+        │               │                │
+        └───────────────┼────────────────┘
+                        ▼
+                 Student ID Assignment
+                        │
+        ┌───────────────┼────────────────────┐
+        ▼               ▼                    ▼
+ Pose Estimation   Face Detection      Gaze Estimation
+ (YOLO Pose)       (MediaPipe)         (L2CS-Net/OpenCV)
+        │               │                    │
+        └───────────────┼────────────────────┘
+                        ▼
+            Behaviour Analysis Engine
+                        │
+                        ▼
+              Suspicious Activity Score
+                        │
+                        ▼
+          Alert & Monitoring Dashboard
+Phase 1 — Video Acquisition
+Goal
+
+Receive live classroom video.
+
+Tasks
+Connect CCTV camera
+Connect IP Camera
+Webcam support
+Video buffering
+Frame extraction
+
+Libraries
+
+OpenCV
+FFmpeg
+GStreamer
+
+Output
+
+Frame
+Timestamp
+Camera ID
+Phase 2 — Student Detection
+
+Goal
+
+Locate every student.
+
+Model
+
+YOLOv8n
+YOLOv8s
+
+Output
+
+Student 1
+Bounding Box
+
+Student 2
+Bounding Box
+
+Student 3
+Bounding Box
+...
+
+Example
+
+Student A
+x=100
+y=220
+w=160
+h=300
+Phase 3 — Multi Object Tracking
+
+Detection alone isn't enough.
+
+Need to know
+
+Student A in frame 1
+
+is still Student A in frame 300.
+
+Use
+
+ByteTrack
+DeepSORT
+
+Output
+
+ID 1
+
+ID 2
+
+ID 3
+
+ID 4
+
+Now every student has a permanent ID.
+
+Phase 4 — Pose Estimation
+
+Goal
+
+Estimate body joints.
+
+Instead of
+
+Rectangle
+
+You now have
+
+Head
+
+Neck
+
+Shoulders
+
+Elbows
+
+Hands
+
+Hip
+
+Knees
+
+Feet
+
+Model
+
+YOLOv8 Pose
+
+Output
+
+17 keypoints
+
+Example
+
+Left Shoulder
+
+(130,220)
+
+Right Shoulder
+
+(180,220)
+
+Left Wrist
+
+(100,290)
+Phase 5 — Face Detection
+
+Need face only.
+
+Libraries
+
+MediaPipe
+
+or
+
+RetinaFace
+
+Output
+
+Face Bounding Box
+Phase 6 — Head Pose Estimation
+
+Need
+
+Head Left
+
+Head Right
+
+Head Up
+
+Head Down
+
+
+Can use
+
+MediaPipe Face Mesh
+
+SolvePnP
+
+Output
+
+Yaw
+
+Pitch
+
+Roll
+
+Example
+
+Yaw = 35°
+
+Looking Left
+Phase 7 — Eye Gaze Estimation
+
+Need
+
+Where is student looking?
+
+Possible directions
+
+Left
+
+Right
+
+Down
+
+Up
+
+Forward
+
+Models
+
+L2CS-Net
+Gaze360
+MediaPipe Iris
+
+Output
+
+Looking at paper
+
+Looking left
+
+Looking behind
+
+Looking towards another student
+Phase 8 — Phone Detection
+
+Very simple.
+
+YOLO
+
+Classes
+
+Cell Phone
+
+Output
+
+Phone Detected
+
+Confidence
+
+Bounding Box
+Phase 9 — Object Association
+
+Now combine detections.
+
+Suppose
+
+Phone detected.
+
+Need to know
+
+Whose phone?
+
+Algorithm
+
+Distance between
+
+Phone
+
+and
+
+Student hand.
+
+If inside bounding box
+
+Assign phone.
+
+Phone
+
+↓
+
+Nearest Hand
+
+↓
+
+Student 14
+Phase 10 — Behaviour Analysis
+
+Now create rules.
+
+Example
+
+Rule 1
+
+Looking left
+
+for
+
+5 seconds
+
+↓
+
+Suspicious
+
+Rule 2
+
+Phone detected
+
+↓
+
+High Alert
+
+Rule 3
+
+Standing up
+
+↓
+
+Medium Alert
+
+Rule 4
+
+Head down
+
+30 seconds
+
+↓
+
+Possible phone usage
+
+Rule 5
+
+Talking
+
+Head turns repeatedly
+
+Mouth movement
+
+↓
+
+Warning
+
+Rule 6
+
+Student leaves seat
+
+↓
+
+Alert
+
+Rule 7
+
+Frequent body twisting
+
+↓
+
+Possible cheating
+
+Phase 11 — Suspicion Score
+
+Instead of yes/no
+
+Give score.
+
+Example
+
+Looking Left
+
+20
+
+Looking Right
+
+15
+
+Phone
+
+100
+
+Standing
+
+40
+
+Talking
+
+30
+
+Total
+
+0–20
+
+Normal
+
+20–50
+
+Observe
+
+50–80
+
+Warning
+
+80+
+
+Critical
+Phase 12 — Event Logging
+
+Don't save every frame.
+
+Save only events.
+
+Example
+
+10:21:34
+
+Student 12
+
+Looking Left
+
+6 seconds
+
+--------------------------------
+
+10:31:05
+
+Phone Detected
+
+Student 5
+
+--------------------------------
+
+10:52
+
+Student 8
+
+Standing
+
+This saves storage and simplifies review.
+
+Phase 13 — Dashboard
+
+Display
+
+Live Camera
+
+↓
+
+Bounding Boxes
+
+↓
+
+Student IDs
+
+↓
+
+Phone Detection
+
+↓
+
+Pose Skeleton
+
+↓
+
+Current Alert
+
+↓
+
+Suspicion Score
+
+Teacher sees everything in one interface.
+
+Phase 14 — Database
+
+Store only metadata.
+
+Tables
+
+Students
+
+ID
+
+Seat
+
+Roll Number
+
+Events
+
+Time
+
+Student
+
+Type
+
+Confidence
+
+Alerts
+
+Alert ID
+
+Student
+
+Status
+
+Resolved
+Phase 15 — Report Generation
+
+After exam
+
+Generate report.
+
+Example
+
+Student 12
+
+Looking Left
+
+8 Times
+
+Phone
+
+No
+
+Standing
+
+No
+
+Total Score
+
+18
+
+Risk
+
+Low
+Suggested Technology Stack
+Component	Technology
+Language	Python
+Video Processing	OpenCV
+Student Detection	YOLOv8
+Phone Detection	YOLOv8
+Pose Estimation	YOLOv8 Pose
+Face Detection	MediaPipe / RetinaFace
+Head Pose	MediaPipe Face Mesh + OpenCV SolvePnP
+Eye Gaze	L2CS-Net or Gaze360
+Tracking	ByteTrack (recommended) or DeepSORT
+Event Processing	Python + NumPy
+Backend API	FastAPI
+Database	PostgreSQL (events) + Redis (optional for real-time state)
+Dashboard	React.js + FastAPI WebSocket
+Video Streaming	OpenCV + WebSockets or RTSP
+Development Roadmap (12 Weeks)
+Week 1–2: Build the video ingestion pipeline and integrate YOLOv8 student detection.
+Week 3: Add multi-object tracking so each student keeps a consistent ID.
+Week 4: Integrate YOLOv8 Pose and visualize body skeletons.
+Week 5: Add face detection and head pose estimation.
+Week 6: Integrate gaze estimation and calibrate looking directions.
+Week 7: Add phone detection and associate detected phones with nearby students.
+Week 8: Implement behavior analysis rules (head turns, standing, leaving seat, prolonged gaze, etc.).
+Week 9: Develop the suspicion scoring engine and event logger.
+Week 10: Build the teacher dashboard with live video, overlays, and alerts.
+Week 11: Optimize performance (GPU inference, batching, frame skipping, multithreading).
+Week 12: Test in a real classroom, tune thresholds, and generate final reports.
+
+This modular approach makes the system easier to develop, test, and extend. For example, later you can add new capabilities such as cheat-sheet detection, audio-based conversation detection, automatic attendance, or exam hall occupancy analysis without redesigning the entire architecture.
+
+## Current Status (Jun 2026)
+
+### Completed
+- **Phases 1–10**: Video acquisition, YOLOv8 detection, ByteTrack tracking, YOLOv8 pose, MediaPipe face/head/gaze, phone detection, object association, behaviour rules (7 rules, sliding window), weighted scoring with exponential decay, async SQLAlchemy repositories, batch EventLogger, dedup AlertManager, Alembic migrations
+- **Phase 11 — Backend API & WebSocket**: WSManager (per-channel broadcast), frame utils (encode_jpeg, overlay_detections, overlay_text), stream/events WS endpoints with quality/max_fps/mode params, event/alert broadcasting, `GET /students/{id}/history`, `GET /reports/{exam_id}`/csv/pdf, StreamManager.subscriber_count()
+- **Phase 12 — React Dashboard**: Full Vite+React+TypeScript+Tailwind app (8 components, 3 hooks), LiveVideoCanvas with WS JPEG decode, EventFeed with severity colors, StudentGrid with suspicion-score filtering, AlertPanel with resolve/show-resolved, PostExamReportView with CSV/PDF, production build ~55KB gzip
+- **Phase 13 — Report Generation**: Risk classification (EVENT_WEIGHTS + SEVERITY_SCORES + classify_risk), timeline builder, enhanced schemas (RiskAssessmentOut, TimelineEntryOut, StudentReportOut), ReportLab PDF (cover→summary→per-student→colored timeline table), CSV with header + timeline section, `GET /reports/{exam_id}/timeline/{student_id}`
+- **Phase 14 — Performance Optimization**: FrameProfiler (per-stage latency tracking, benchmark reports), ONNX/FP16/INT8 inference backends in YOLO, parallel per-person pose pipeline, configurable frame skipping (`video_process_every_n`), 10+ env var tunables in config.py, benchmark runner + CSV export, `GET/POST /benchmark`, `GET /profiler/summary`, `POST /profiler/reset` endpoints
+- **Phase 15 — Integration & Deployment Done**:
+  - Profiling wired into all route handlers (singleton FrameProfiler, enabled via `PROCTOR_PROFILING_ENABLED`)
+  - 10 integration tests covering detection+pipeline, profiling, behaviour→scoring end-to-end, concurrent profiler usage, benchmark runner, and disabled-profiler path
+  - `docker-compose.prod.yml` with NVIDIA GPU reservation, health checks, resource limits, restart policy, production ONNX/INT8 defaults
+  - Multi-stage backend Dockerfile (production vs development targets)
+  - 242 total tests, all passing, zero ruff/mypy errors
+
+## Architecture Diagram (Mermaid)
+
+```mermaid
+flowchart TB
+    subgraph Sources["Video Sources"]
+        RTSP["RTSP Camera"]
+        USB["USB Camera"]
+        FILE["Recorded File"]
+    end
+
+    subgraph Ingestion["Ingestion Layer"]
+        SM["StreamManager"]
+        PRE["FramePreprocessor<br/>resize, normalize, color"]
+        FS["Frame Skipper<br/>(every Nth frame)"]
+    end
+
+    subgraph Detection["Detection Pipeline"]
+        YOLO["YOLOv8 Detector<br/>(ONNX/PyTorch/FP16/INT8)"]
+        BT["ByteTrack Tracker"]
+        PP["Post-Processor<br/>NMS, person filter"]
+    end
+
+    subgraph Analysis["Analysis Services"]
+        PO["YOLOv8 Pose<br/>parallel per-person"]
+        FA["MediaPipe Face<br/>+ Head Pose (SolvePnP)"]
+        GA["Gaze Estimator<br/>(L2CS-Net / Gaze360)"]
+        PH["Phone Detector<br/>YOLOv8 + hand proximity"]
+        ASSOC["Object Association<br/>phone → student"]
+    end
+
+    subgraph Behaviour["Behaviour Engine"]
+        BA["BehaviourAnalyser<br/>7 rules, sliding window"]
+        SS["SuspicionScorer<br/>weighted + decay"]
+    end
+
+    subgraph Persistence["Data Layer"]
+        DB[("PostgreSQL")]
+        EL["EventLogger<br/>batch buffer"]
+        AM["AlertManager<br/>dedup + resolve"]
+    end
+
+    subgraph API["API Layer"]
+        FAST["FastAPI<br/>(REST + WebSocket)"]
+        WS_MGR["WSManager<br/>per-channel broadcast"]
+        REP["ReportGenerator<br/>(PDF/CSV/timeline)"]
+        PROF["FrameProfiler<br/>benchmark endpoint"]
+    end
+
+    subgraph Frontend["React Dashboard"]
+        DASH["DashboardLayout<br/>5-column grid"]
+        LVC["LiveVideoCanvas<br/>WS JPEG decode"]
+        EF["EventFeed<br/>severity colors"]
+        SG["StudentGrid<br/>score filter"]
+        AP["AlertPanel<br/>resolve/show-resolved"]
+        PERV["PostExamReportView"]
+    end
+
+    Sources --> Ingestion
+    SM --> PRE --> FS
+    FS --> Detection
+    YOLO --> BT --> PP
+    PP --> Analysis
+    PO --> BA
+    FA --> BA
+    GA --> BA
+    PH --> ASSOC --> BA
+    BA --> SS
+    SS --> EL
+    EL --> DB
+    AM --> DB
+    EL --> WS_MGR
+    AM --> WS_MGR
+    WS_MGR --> FAST
+    SS --> FAST
+    DB --> FAST
+    FAST --> REP
+    FAST --> PROF
+    FAST --> DASH
+    FAST --> LVC
+    FAST --> EF
+    FAST --> SG
+    FAST --> AP
+    FAST --> PERV
+```
+
+## Setup Guide
+
+### Prerequisites
+- Python 3.10+
+- Node.js 18+ (for dashboard)
+- Docker Desktop (for PostgreSQL + Redis)
+- NVIDIA Container Toolkit (optional, for GPU inference)
+
+### Quick Start (Development)
+
+```bash
+# 1. Start infra
+docker compose up -d postgres redis
+
+# 2. Backend
+cd backend
+python -m venv .venv
+.venv\Scripts\activate    # Windows
+pip install -e ".[dev]"
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+
+# 3. Dashboard
+cd dashboard
+npm install
+npm run dev              # → http://localhost:5173
+```
+
+### Configuration
+All settings via environment variables with `PROCTOR_` prefix:
+
+| Variable | Default | Description |
+|---|---|---|
+| `PROCTOR_DATABASE_URL` | `postgresql+asyncpg://...` | PostgreSQL connection |
+| `PROCTOR_REDIS_URL` | `redis://localhost:6379/0` | Redis connection |
+| `PROCTOR_VIDEO_PROCESS_EVERY_N` | `1` | Frame skipping factor |
+| `PROCTOR_DETECTION_INFERENCE_BACKEND` | `pytorch` | `pytorch`, `onnx` |
+| `PROCTOR_DETECTION_QUANTIZATION` | `none` | `none`, `fp16`, `int8` |
+| `PROCTOR_DETECTION_EXECUTOR_WORKERS` | `2` | Thread pool size |
+| `PROCTOR_POSE_INFERENCE_BACKEND` | `pytorch` | Pose inference backend |
+| `PROCTOR_PROFILING_ENABLED` | `false` | Enable profiling |
+| `PROCTOR_THRESHOLD_STANDING_HEIGHT_RATIO` | `0.6` | Standing detection |
+| `PROCTOR_THRESHOLD_PHONE_IOU` | `0.3` | Phone-student IOU |
+
+### Production Deployment
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+Requires NVIDIA GPU + Container Toolkit for ONNX/INT8 inference.
+
+### Running Tests
+```bash
+cd backend
+python -m pytest -x -q
+ruff check .
+mypy app/
+```
+
+## API Reference
+
+### REST Endpoints
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/health` | Health check |
+| POST | `/api/v1/detect` | Detect people in uploaded image |
+| POST | `/api/v1/pose` | Pose estimation on uploaded image |
+| POST | `/api/v1/pose/analyze` | Pose + skeleton + head direction + hand-raised |
+| POST | `/api/v1/face/detect` | Face detection |
+| POST | `/api/v1/face/pose` | Face + head pose (yaw/pitch/roll) |
+| POST | `/api/v1/gaze` | Gaze estimation |
+| POST | `/api/v1/phone/detect` | Phone + assignment to nearest student |
+| POST | `/api/v1/phone/detect-only` | Phone detection only |
+| POST | `/api/v1/behaviour/analyse` | Analyse behaviour from state array |
+| POST | `/api/v1/behaviour/reset` | Reset behaviour analyser state |
+| POST | `/api/v1/scoring/update` | Update suspicion score |
+| GET | `/api/v1/scoring/{track_id}` | Get score for track |
+| POST | `/api/v1/scoring/reset` | Reset scores |
+| GET | `/api/v1/streams` | List video streams |
+| POST | `/api/v1/streams` | Add video source |
+| DELETE | `/api/v1/streams/{camera_id}` | Remove source |
+| POST | `/api/v1/streams/{camera_id}/start` | Start stream |
+| POST | `/api/v1/streams/{camera_id}/stop` | Stop stream |
+| GET | `/api/v1/students` | List all students |
+| GET | `/api/v1/students/{id}` | Get student details |
+| GET | `/api/v1/students/{id}/history` | Get student event history |
+| GET | `/api/v1/students/{id}/events` | Get student events (paginated) |
+| POST | `/api/v1/events/log` | Log an event |
+| POST | `/api/v1/events/flush` | Flush event buffer |
+| GET | `/api/v1/alerts` | List alerts (?resolved=true) |
+| POST | `/api/v1/alerts/raise` | Raise alert |
+| POST | `/api/v1/alerts/{id}/resolve` | Resolve alert |
+| GET | `/api/v1/reports/{exam_id}` | Get report JSON |
+| GET | `/api/v1/reports/{exam_id}/csv` | Download CSV report |
+| GET | `/api/v1/reports/{exam_id}/pdf` | Download PDF report |
+| GET | `/api/v1/reports/{exam_id}/timeline/{student_id}` | Student timeline |
+| POST | `/api/v1/benchmark` | Run benchmark (?num_frames, model_size, backend, quantization) |
+| POST | `/api/v1/benchmark/csv` | Benchmark as CSV download |
+| GET | `/api/v1/profiler/summary` | Current profiler summary |
+| POST | `/api/v1/profiler/reset` | Reset profiler data |
+
+### WebSocket Endpoints
+| Path | Description |
+|---|---|
+| `/api/v1/ws/stream/{camera_id}` | Live JPEG frames (?quality, max_fps, mode) |
+| `/api/v1/ws/events` | Real-time events + alerts |
